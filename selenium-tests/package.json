@@ -1,0 +1,14 @@
+{
+  "name": "tradementor-selenium-tests",
+  "version": "1.0.0",
+  "description": "End-to-End Selenium test suite with Excel report generator for TradeMentor web application",
+  "main": "test-runner.js",
+  "scripts": {
+    "test": "node test-runner.js"
+  },
+  "dependencies": {
+    "chromedriver": "^149.0.3",
+    "exceljs": "^4.4.0",
+    "selenium-webdriver": "^4.22.0"
+  }
+}

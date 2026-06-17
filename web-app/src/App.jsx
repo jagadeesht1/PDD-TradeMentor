@@ -1564,7 +1564,7 @@ export default function App() {
 
                 <div className="flex gap-2">
                   {['low', 'moderate', 'high'].map(p => (
-                    <button key={p} onClick={() => setRiskProfile(p)}
+                    <button key={p} onClick={() => { setRiskProfile(p); addToast(`Advisor model set to ${p.toUpperCase()}`, 'success'); }}
                       className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition-all border
                         ${riskProfile === p
                           ? 'bg-gainGreen text-black border-gainGreen'
