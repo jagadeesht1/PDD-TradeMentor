@@ -129,11 +129,11 @@ jobs:
           npm run preview -- --port 5173 &
           sleep 6
           cd ..
-          python backend/e2e/selenium_e2e_tests.py
+          python phone-testing/selenium/selenium_e2e_tests.py
 
       - name: Generate Excel Test Report Sheet
         run: |
-          python backend/e2e/generate_test_report.py
+          python phone-testing/selenium/generate_test_report.py
 
       - name: Upload Excel E2E Report Artifact
         uses: actions/upload-artifact@v4
@@ -203,11 +203,11 @@ jobs:
             # Install the built APK
             adb install mobile-app/build/app/outputs/flutter-apk/app-release.apk
             # Run Python Appium E2E tests
-            python mobile-app/e2e/appium_e2e_tests.py
+            python phone-testing/appium/appium_e2e_tests.py
 
       - name: Generate Mobile Excel Test Report
         run: |
-          python mobile-app/e2e/generate_mobile_report.py
+          python phone-testing/appium/generate_mobile_report.py
 
       - name: Upload Excel Mobile E2E Report Artifact
         uses: actions/upload-artifact@v4
