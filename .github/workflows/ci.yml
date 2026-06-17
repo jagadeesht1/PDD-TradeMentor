@@ -143,3 +143,81 @@ jobs:
           name: TradeMentor_E2E_Test_Report
           path: TradeMentor_E2E_Test_Report.xlsx
 
+  # 5. E2E Appium Mobile Verification & Test Report Generation
+  mobile-e2e-tests:
+    name: Appium E2E Suite
+    runs-on: macos-13
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+
+      - name: Install Flutter Dependencies
+        run: |
+          cd mobile-app
+          flutter pub get
+
+      - name: Build Android Release APK
+        run: |
+          cd mobile-app
+          flutter build apk --release
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Appium and Drivers
+        run: |
+          npm install -g appium
+          appium driver install uiautomator2
+
+      - name: Start Appium Server
+        run: |
+          appium --log appium.log &
+          sleep 5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Testing Dependencies
+        run: |
+          pip install pandas openpyxl xlsxwriter Appium-Python-Client selenium
+
+      - name: Run Appium E2E Tests inside Emulator
+        uses: reactive-circus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: Nexus 6
+          script: |
+            # Install the built APK
+            adb install mobile-app/build/app/outputs/flutter-apk/app-release.apk
+            # Run Python Appium E2E tests
+            python mobile-app/e2e/appium_e2e_tests.py
+
+      - name: Generate Mobile Excel Test Report
+        run: |
+          python mobile-app/e2e/generate_mobile_report.py
+
+      - name: Upload Excel Mobile E2E Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradeMentor_Mobile_E2E_Test_Report
+          path: TradeMentor_Mobile_E2E_Test_Report.xlsx
+
+
