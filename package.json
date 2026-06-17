@@ -3,5 +3,8 @@
   "private": true,
   "workspaces": [
     "backend"
-  ]
+  ],
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
 }

@@ -113,27 +113,22 @@ jobs:
           cd web-app
           npm ci
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Install Python Testing Dependencies
+      - name: Install Web Testing Dependencies (Node.js)
         run: |
-          pip install pandas openpyxl xlsxwriter selenium webdriver-manager
+          npm install selenium-webdriver exceljs
 
-      - name: Build Web App and Run Selenium E2E Tests
+      - name: Build Web App and Run Selenium E2E Tests (Node.js)
         run: |
           cd web-app
           npm run build
           npm run preview -- --port 5173 &
           sleep 6
           cd ..
-          python phone-testing/selenium/selenium_e2e_tests.py
+          node phone-testing/selenium/selenium_e2e_tests.js
 
-      - name: Generate Excel Test Report Sheet
+      - name: Generate Excel Test Report Sheet (Node.js)
         run: |
-          python phone-testing/selenium/generate_test_report.py
+          node phone-testing/selenium/generate_test_report.js
 
       - name: Upload Excel E2E Report Artifact
         uses: actions/upload-artifact@v4
