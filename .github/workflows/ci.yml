@@ -86,3 +86,60 @@ jobs:
         run: |
           cd mobile-app
           flutter analyze
+
+  # 4. E2E Selenium Verification & Test Report Generation
+  e2e-tests:
+    name: Selenium E2E Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Start Docker Services (Backend & DB)
+        run: |
+          cd docker
+          docker compose up -d --build
+          sleep 12
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web-app/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd web-app
+          npm ci
+
+      - name: Compile and Start Web Server
+        run: |
+          cd web-app
+          npm run build
+          npm run preview -- --port 5173 &
+          sleep 5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Testing Dependencies
+        run: |
+          pip install pandas openpyxl xlsxwriter selenium webdriver-manager
+
+      - name: Run Selenium E2E Tests
+        run: |
+          python selenium_e2e_tests.py
+
+      - name: Generate Excel Test Report Sheet
+        run: |
+          python generate_test_report.py
+
+      - name: Upload Excel E2E Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TradeMentor_E2E_Test_Report
+          path: TradeMentor_E2E_Test_Report.xlsx
+
