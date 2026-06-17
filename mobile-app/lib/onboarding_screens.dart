@@ -272,7 +272,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton.icon(
+                  onPressed: () {
+                    provider.setLoggedIn(true);
+                    provider.setScreen('RISK_QUIZ');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Logged in via Offline Demo Mode (Mock Database)'),
+                        backgroundColor: Colors.blueAccent,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.cloud_off, color: AppColors.gainGreen),
+                  label: const Text(
+                    'Use Offline Demo Mode (No Server Required)',
+                    style: TextStyle(color: AppColors.gainGreen, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

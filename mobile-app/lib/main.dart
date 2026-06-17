@@ -90,7 +90,9 @@ class RootAppNavigator extends StatelessWidget {
 
 // Market state provider managing navigation, http requests, polling, sparkline logs and offline fallbacks
 class MarketProvider with ChangeNotifier {
-  String _baseUrl = 'http://localhost:5000';
+  String _baseUrl = kIsWeb
+      ? 'http://localhost:5000'
+      : (defaultTargetPlatform == TargetPlatform.android ? 'http://10.0.2.2:5000' : 'http://localhost:5000');
   String get baseUrl => _baseUrl;
 
   void updateBaseUrl(String newUrl) {
