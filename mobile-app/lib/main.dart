@@ -317,20 +317,20 @@ class MarketProvider with ChangeNotifier {
       } else {
         // Fallback: If permissions blocked Wifi IP, scan common subnets
         debugPrint('Wi-Fi IP unavailable (likely permission). Falling back to common subnets...');
-        prefixesToScan.addAll(['172.23.51', '192.168.1', '192.168.0', '10.0.2', '10.0.0']);
+        prefixesToScan.addAll(['10.117.107', '172.23.51', '192.168.1', '192.168.0', '10.0.2', '10.0.0']);
       }
 
       for (String prefix in prefixesToScan) {
         debugPrint('Scanning subnet $prefix.* for TradeMentor backend...');
         
-        // Scan common IPs first for speed
-        final commonSuffixes = ['1', '100', '101', '146', '12', '14', '15'];
+        // Scan common IPs first for speed (including the user's .80 development suffix)
+        final commonSuffixes = ['80', '1', '100', '101', '146', '12', '14', '15'];
         if (wifiIP != null && wifiIP.contains('.')) commonSuffixes.add(wifiIP.split('.').last);
         
         for (var suffix in commonSuffixes) {
           final testUrl = 'http://$prefix.$suffix:5000';
           try {
-            final res = await http.get(Uri.parse('$testUrl/api/stocks')).timeout(const Duration(milliseconds: 300));
+            final res = await http.get(Uri.parse('$testUrl/api/stocks')).timeout(const Duration(milliseconds: 1000));
             if (res.statusCode == 200) {
               _baseUrl = testUrl;
               debugPrint('✅ Auto-discovered backend at: $_baseUrl');
@@ -345,7 +345,7 @@ class MarketProvider with ChangeNotifier {
           futures.add(() async {
             final testUrl = 'http://$prefix.$i:5000';
             try {
-              final res = await http.get(Uri.parse('$testUrl/api/stocks')).timeout(const Duration(milliseconds: 400));
+              final res = await http.get(Uri.parse('$testUrl/api/stocks')).timeout(const Duration(milliseconds: 1200));
               if (res.statusCode == 200) return testUrl;
             } catch (_) {}
             return null;
