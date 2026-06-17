@@ -1,0 +1,88 @@
+name: TradeMentor CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 1. Express Backend CI Job
+  backend:
+    name: Verify Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Syntax Lint Check
+        run: |
+          cd backend
+          node --check server.js
+
+  # 2. React Frontend CI Job
+  web-app:
+    name: Build Web App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web-app/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd web-app
+          npm ci
+
+      - name: Compile Production Bundle
+        run: |
+          cd web-app
+          npm run build
+
+  # 3. Flutter Mobile CI Job
+  mobile-app:
+    name: Analyze Mobile App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.2'
+          channel: 'stable'
+
+      - name: Install Packages
+        run: |
+          cd mobile-app
+          flutter pub get
+
+      - name: Lint and Static Analysis
+        run: |
+          cd mobile-app
+          flutter analyze
