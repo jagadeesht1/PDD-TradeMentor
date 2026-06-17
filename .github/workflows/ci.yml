@@ -113,13 +113,6 @@ jobs:
           cd web-app
           npm ci
 
-      - name: Compile and Start Web Server
-        run: |
-          cd web-app
-          npm run build
-          npm run preview -- --port 5173 &
-          sleep 5
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -129,8 +122,13 @@ jobs:
         run: |
           pip install pandas openpyxl xlsxwriter selenium webdriver-manager
 
-      - name: Run Selenium E2E Tests
+      - name: Build Web App and Run Selenium E2E Tests
         run: |
+          cd web-app
+          npm run build
+          npm run preview -- --port 5173 &
+          sleep 6
+          cd ..
           python backend/e2e/selenium_e2e_tests.py
 
       - name: Generate Excel Test Report Sheet
@@ -178,15 +176,9 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Appium and Drivers
+      - name: Install Appium and Drivers locally
         run: |
-          npm install -g appium
-          appium driver install uiautomator2
-
-      - name: Start Appium Server
-        run: |
-          appium --log appium.log &
-          sleep 5
+          npm install appium appium-uiautomator2-driver
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -205,6 +197,9 @@ jobs:
           arch: x86_64
           profile: Nexus 6
           script: |
+            # Start Appium server locally in the background
+            npx appium --log appium.log &
+            sleep 8
             # Install the built APK
             adb install mobile-app/build/app/outputs/flutter-apk/app-release.apk
             # Run Python Appium E2E tests
