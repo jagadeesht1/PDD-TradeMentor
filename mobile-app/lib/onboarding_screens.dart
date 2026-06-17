@@ -150,9 +150,50 @@ class _LoginScreenState extends State<LoginScreen> {
     if (error == null) {
       provider.setScreen('RISK_QUIZ');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: AppColors.lossRed),
-      );
+      if (error.contains('Cannot reach server') || error.contains('Check your backend URL')) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.surface,
+            title: const Row(
+              children: [
+                Icon(Icons.wifi_off, color: AppColors.lossRed),
+                SizedBox(width: 8),
+                Text('Server Unreachable'),
+              ],
+            ),
+            content: const Text(
+              'TradeMentor could not connect to the backend server.\n\n'
+              'Would you like to run the platform in Offline Demo Mode instead? You will not need any server running.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  provider.setLoggedIn(true);
+                  provider.setScreen('RISK_QUIZ');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Logged in via Offline Demo Mode (Mock Database)'),
+                      backgroundColor: Colors.blueAccent,
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.gainGreen),
+                child: const Text('Enter Offline Mode', style: TextStyle(color: Colors.black)),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error), backgroundColor: AppColors.lossRed),
+        );
+      }
     }
   }
 
