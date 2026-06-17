@@ -1,0 +1,7 @@
+{
+  "name": "tradementor-monorepo",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ]
+}
