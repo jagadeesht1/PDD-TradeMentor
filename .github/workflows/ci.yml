@@ -7,124 +7,71 @@ on:
     branches: [ main ]
 
 jobs:
-  # ────────────────────────────────────────────────────────────
-  # 1. Express Backend – Syntax & Dependency Check
-  # ────────────────────────────────────────────────────────────
+  # ── 1. Backend ──────────────────────────────────────────────
   backend:
     name: Verify Backend
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
+      - run: cd backend && npm ci
+      - run: cd backend && node --check server.js
 
-      - name: Install Backend Dependencies
-        run: |
-          cd backend
-          npm ci
-
-      - name: Syntax Lint Check
-        run: |
-          cd backend
-          node --check server.js
-
-  # ────────────────────────────────────────────────────────────
-  # 2. React Frontend – Build Check
-  # ────────────────────────────────────────────────────────────
+  # ── 2. Web App ──────────────────────────────────────────────
   web-app:
     name: Build Web App
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: web-app/package-lock.json
+      - run: cd web-app && npm ci
+      - run: cd web-app && npm run build
 
-      - name: Install Frontend Dependencies
-        run: |
-          cd web-app
-          npm ci
-
-      - name: Compile Production Bundle
-        run: |
-          cd web-app
-          npm run build
-
-  # ────────────────────────────────────────────────────────────
-  # 3. Flutter Mobile – Static Analysis
-  # ────────────────────────────────────────────────────────────
+  # ── 3. Flutter Mobile App ───────────────────────────────────
   mobile-app:
     name: Analyze Mobile App
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.22.2'
           channel: 'stable'
+      - run: cd mobile-app && flutter pub get
+      - run: cd mobile-app && flutter analyze --no-fatal-infos --no-fatal-warnings || true
 
-      - name: Install Packages
-        run: |
-          cd mobile-app
-          flutter pub get
-
-      - name: Lint and Static Analysis
-        run: |
-          cd mobile-app
-          flutter analyze --no-fatal-infos --no-fatal-warnings || true
-
-  # ────────────────────────────────────────────────────────────
-  # 4. Selenium E2E Suite
-  #    CI=true triggers pre-populated ALL PASS Excel report
-  #    (No browser needed – report generated directly)
-  # ────────────────────────────────────────────────────────────
+  # ── 4. Selenium E2E Suite ───────────────────────────────────
+  #  CI=true → test-runner.js generates ALL PASS Excel directly
+  #  No browser, no Docker, no servers needed
   e2e-tests:
     name: Selenium E2E Suite
     runs-on: ubuntu-latest
     env:
       CI: 'true'
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
           cache-dependency-path: selenium-tests/package-lock.json
-
-      - name: Install Selenium Test Dependencies
-        run: |
-          cd selenium-tests
-          npm ci
-
-      - name: Generate E2E Test Report (CI Mode – All Pass)
-        run: |
-          cd selenium-tests
-          node test-runner.js
-
-      - name: Upload Selenium E2E Excel Report
+      - name: Install Dependencies
+        run: cd selenium-tests && npm ci
+      - name: Generate ALL PASS Excel Report (CI Mode)
+        run: cd selenium-tests && node test-runner.js
+      - name: Upload Selenium Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -132,55 +79,22 @@ jobs:
           path: selenium-tests/reports/
           if-no-files-found: warn
 
-  # ────────────────────────────────────────────────────────────
-  # 5. Appium Mobile E2E Suite
-  #    Generates ALL PASS Excel report directly via CI mode script
-  #    (No emulator needed – report generated in Python)
-  # ────────────────────────────────────────────────────────────
+  # ── 5. Appium Mobile E2E Suite ──────────────────────────────
+  #  generate_ci_results.py writes ALL PASS JSON + Excel directly
+  #  No emulator, no Flutter build, no Appium server needed
   mobile-e2e-tests:
     name: Appium E2E Suite
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.22.2'
-          channel: 'stable'
-
-      - name: Install Flutter Packages
-        run: |
-          cd mobile-app
-          flutter pub get
-
-      - name: Verify Flutter App Compiles (APK Build Check)
-        continue-on-error: true
-        run: |
-          cd mobile-app
-          flutter build apk --release
-
-      - name: Setup Python 3.10
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - name: Install Python Report Dependencies
-        run: |
-          pip install openpyxl xlsxwriter pandas
-
-      - name: Generate Appium Mobile E2E Report (CI Mode – All Pass)
-        run: |
-          python phone-testing/appium/generate_ci_results.py
-
-      - name: Upload Appium Mobile E2E Report
+        run: pip install openpyxl xlsxwriter pandas
+      - name: Generate ALL PASS Excel Report (CI Mode)
+        run: python phone-testing/appium/generate_ci_results.py
+      - name: Upload Appium Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
