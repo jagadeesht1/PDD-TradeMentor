@@ -136,10 +136,16 @@ jobs:
   # 5. E2E Appium Mobile Verification & Test Report Generation
   mobile-e2e-tests:
     name: Appium E2E Suite
-    runs-on: macos-13
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Enable KVM for Android Emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -179,7 +185,7 @@ jobs:
 
       - name: Install Python Testing Dependencies
         run: |
-          pip install pandas openpyxl xlsxwriter Appium-Python-Client selenium
+          pip install pytest pandas openpyxl xlsxwriter Appium-Python-Client selenium
 
       - name: Run Appium E2E Tests inside Emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -188,6 +194,8 @@ jobs:
           target: default
           arch: x86_64
           profile: Nexus 6
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
           script: |
             # Start Appium server locally in the background
             npx appium --log appium.log &
@@ -205,6 +213,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TradeMentor_Mobile_E2E_Test_Report
-          path: TradeMentor_Mobile_E2E_Test_Report.xlsx
+          path: phone-testing/reports/
 
 
