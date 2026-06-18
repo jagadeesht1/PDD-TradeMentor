@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# Cancel any old in-progress/queued runs on the same branch when a new push arrives
+concurrency:
+  group: tradementor-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ── 1. Backend ──────────────────────────────────────────────
   backend:
