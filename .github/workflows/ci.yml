@@ -115,7 +115,8 @@ jobs:
 
       - name: Install Web Testing Dependencies (Node.js)
         run: |
-          npm install selenium-webdriver exceljs
+          cd selenium-tests
+          npm ci
 
       - name: Build Web App and Run Selenium E2E Tests (Node.js)
         run: |
@@ -123,18 +124,14 @@ jobs:
           npm run build
           npm run preview -- --port 5173 &
           sleep 6
-          cd ..
-          node phone-testing/selenium/selenium_e2e_tests.js
-
-      - name: Generate Excel Test Report Sheet (Node.js)
-        run: |
-          node phone-testing/selenium/generate_test_report.js
+          cd ../selenium-tests
+          node test-runner.js
 
       - name: Upload Excel E2E Report Artifact
         uses: actions/upload-artifact@v4
         with:
           name: TradeMentor_E2E_Test_Report
-          path: TradeMentor_E2E_Test_Report.xlsx
+          path: selenium-tests/reports/
 
   # 5. E2E Appium Mobile Verification & Test Report Generation
   mobile-e2e-tests:
@@ -185,7 +182,7 @@ jobs:
           pip install pandas openpyxl xlsxwriter Appium-Python-Client selenium
 
       - name: Run Appium E2E Tests inside Emulator
-        uses: reactive-circus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
           target: default
@@ -198,7 +195,7 @@ jobs:
             # Install the built APK
             adb install mobile-app/build/app/outputs/flutter-apk/app-release.apk
             # Run Python Appium E2E tests
-            python phone-testing/appium/appium_e2e_tests.py
+            python phone-testing/appium/test_runner.py
 
       - name: Generate Mobile Excel Test Report
         run: |
