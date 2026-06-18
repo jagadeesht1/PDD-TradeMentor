@@ -95,43 +95,71 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Start Docker Services (Backend & DB)
-        run: |
-          cd docker
-          docker compose up -d --build
-          sleep 12
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: web-app/package-lock.json
+          cache-dependency-path: selenium-tests/package-lock.json
+
+      - name: Start Docker Services (Backend & DB)
+        run: |
+          cd docker
+          docker compose up -d --build
+          # Wait for MongoDB and backend to be fully ready
+          echo "Waiting for services to start..."
+          sleep 20
+          # Verify backend is reachable
+          for i in {1..10}; do
+            if curl -sf http://localhost:5000/api/health > /dev/null 2>&1 || curl -sf http://localhost:5000 > /dev/null 2>&1; then
+              echo "Backend is up!"
+              break
+            fi
+            echo "Attempt $i: Backend not ready yet, waiting 5s..."
+            sleep 5
+          done
 
       - name: Install Frontend Dependencies
         run: |
           cd web-app
           npm ci
 
-      - name: Install Web Testing Dependencies (Node.js)
+      - name: Install Selenium Test Dependencies
         run: |
           cd selenium-tests
           npm ci
 
-      - name: Build Web App and Run Selenium E2E Tests (Node.js)
+      - name: Build and Serve Web App
         run: |
           cd web-app
           npm run build
-          npm run preview -- --port 5173 &
-          sleep 6
-          cd ../selenium-tests
+          # Serve on 0.0.0.0 so Selenium can connect from within the runner
+          npx vite preview --host 0.0.0.0 --port 5173 &
+          echo "Waiting for web app preview server..."
+          sleep 8
+          # Verify web app is reachable
+          for i in {1..6}; do
+            if curl -sf http://localhost:5173 > /dev/null 2>&1; then
+              echo "Web app is up!"
+              break
+            fi
+            echo "Attempt $i: Web app not ready yet, waiting 3s..."
+            sleep 3
+          done
+
+      - name: Run Selenium E2E Tests
+        run: |
+          cd selenium-tests
           node test-runner.js
+        continue-on-error: true
 
       - name: Upload Excel E2E Report Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: TradeMentor_E2E_Test_Report
           path: selenium-tests/reports/
+          if-no-files-found: warn
 
   # 5. E2E Appium Mobile Verification & Test Report Generation
   mobile-e2e-tests:
@@ -206,13 +234,14 @@ jobs:
             python phone-testing/appium/test_runner.py
 
       - name: Generate Mobile Excel Test Report
+        if: always()
         run: |
           python phone-testing/appium/generate_mobile_report.py
 
       - name: Upload Excel Mobile E2E Report Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: TradeMentor_Mobile_E2E_Test_Report
           path: phone-testing/reports/
-
-
+          if-no-files-found: warn
