@@ -23,46 +23,131 @@ if (!fs.existsSync(screenshotsDir)) fs.mkdirSync(screenshotsDir, { recursive: tr
 const results = [];
 const startTime = new Date();
 
-// ─── Pre-defined test definitions (all test steps across all modules) ───
+// ─── Pre-defined test definitions (90 test steps across all modules) ───
 const ALL_TEST_STEPS = [
-  // Auth & Onboarding
-  { id: 'TM-AUTH-001', category: 'Authentication', description: 'Verify welcome/splash screen loads and displays TradeMentor branding' },
-  { id: 'TM-AUTH-002', category: 'Authentication', description: 'Navigate from Splash screen to Login page' },
-  { id: 'TM-AUTH-003', category: 'Authentication', description: 'Verify login validation fails with empty fields' },
-  { id: 'TM-AUTH-004', category: 'Authentication', description: 'Verify successful login loads the Risk Onboarding Quiz' },
-  { id: 'TM-AUTH-005', category: 'Authentication', description: 'Complete AI Risk Quiz and enter TradeMentor platform dashboard' },
-  // Markets
-  { id: 'TM-MKT-001', category: 'Markets', description: 'Verify real-time index cards are loaded and visible on Markets tab' },
-  { id: 'TM-MKT-002', category: 'Markets', description: 'Test sector filter pills in the stock watchlist' },
-  { id: 'TM-MKT-003', category: 'Markets', description: 'Open Stock Details modal and verify sub-tabs data load' },
-  { id: 'TM-MKT-004', category: 'Markets', description: 'Simulate a paper trade BUY order in the Order Ticket tab' },
-  { id: 'TM-MKT-005', category: 'Markets', description: 'Verify technical scanners tab functionality' },
-  { id: 'TM-MKT-006', category: 'Markets', description: 'Verify sectors constituent breakdown loads correctly' },
-  // Portfolio
-  { id: 'TM-PORT-000', category: 'Portfolio', description: 'Navigate to Portfolio page' },
-  { id: 'TM-PORT-001', category: 'Portfolio', description: 'Verify holdings table details match previous trade' },
-  { id: 'TM-PORT-002', category: 'Portfolio', description: 'Simulate selling portion of holdings via order ticket' },
-  { id: 'TM-PORT-003', category: 'Portfolio', description: 'Verify Wallet Manager Deposit and Withdrawal flow' },
-  { id: 'TM-PORT-004', category: 'Portfolio', description: 'Verify Capital Gains Tax summary card outputs' },
-  // Alerts
-  { id: 'TM-ALRT-000', category: 'Alerts', description: 'Navigate to My Rules page' },
-  { id: 'TM-ALRT-001', category: 'Alerts', description: 'Configure and deploy a custom alert trigger rule' },
-  { id: 'TM-ALRT-002', category: 'Alerts', description: 'Verify the deployed rule is active and visible in the rules ledger' },
-  { id: 'TM-ALRT-003', category: 'Alerts', description: 'Verify active alert rule deletion' },
-  // AI Advisor
-  { id: 'TM-ADVI-000', category: 'AI Advisor', description: 'Navigate to AI Advisor page' },
-  { id: 'TM-ADVI-001', category: 'AI Advisor', description: 'Modify AI Risk Profile classification and verify sensitivity adjustment' },
-  { id: 'TM-ADVI-002', category: 'AI Advisor', description: 'Submit question to AI Chatbot and verify response generation' },
-  { id: 'TM-ADVI-003', category: 'AI Advisor', description: 'Execute quick AI preset scanner command shortcut' },
-  { id: 'TM-ADVI-004', category: 'AI Advisor', description: 'Verify Retake AI Risk Quiz popup modal dialog' },
-  // Ledger
-  { id: 'TM-HIST-000', category: 'Ledger', description: 'Navigate to Ledger history page' },
-  { id: 'TM-HIST-001', category: 'Ledger', description: 'Verify ledger records contain entries from executed transactions' },
-  { id: 'TM-HIST-002', category: 'Ledger', description: 'Test transaction list refresh button trigger' },
-  // Academy
-  { id: 'TM-ACAD-000', category: 'Academy', description: 'Navigate to Academy page' },
-  { id: 'TM-ACAD-001', category: 'Academy', description: 'Verify academy modules cards and trigger study module loading' },
-  { id: 'TM-ACAD-002', category: 'Academy', description: 'Verify Financial Dictionary glossary terms list' },
+  // ── Authentication & Onboarding (15 tests) ──────────────────────────────────
+  { id: 'TM-AUTH-001', category: 'Authentication', description: 'Verify welcome splash screen loads and displays TradeMentor branding correctly' },
+  { id: 'TM-AUTH-002', category: 'Authentication', description: 'Navigate from splash screen to Login page via Get Started button' },
+  { id: 'TM-AUTH-003', category: 'Authentication', description: 'Verify login form shows validation error with empty email and password fields' },
+  { id: 'TM-AUTH-004', category: 'Authentication', description: 'Verify login form rejects invalid email format (missing @ symbol)' },
+  { id: 'TM-AUTH-005', category: 'Authentication', description: 'Verify login form rejects password shorter than 6 characters' },
+  { id: 'TM-AUTH-006', category: 'Authentication', description: 'Verify successful login with valid credentials loads Risk Onboarding Quiz' },
+  { id: 'TM-AUTH-007', category: 'Authentication', description: 'Complete AI Risk Quiz selecting Conservative risk profile' },
+  { id: 'TM-AUTH-008', category: 'Authentication', description: 'Complete AI Risk Quiz selecting Moderate risk profile and enter dashboard' },
+  { id: 'TM-AUTH-009', category: 'Authentication', description: 'Verify Google Sign-In button is visible on login page' },
+  { id: 'TM-AUTH-010', category: 'Authentication', description: 'Verify Register link navigates to account creation form' },
+  { id: 'TM-AUTH-011', category: 'Authentication', description: 'Verify new account registration with valid name, email and password' },
+  { id: 'TM-AUTH-012', category: 'Authentication', description: 'Verify user session persists after page refresh (JWT token retention)' },
+  { id: 'TM-AUTH-013', category: 'Authentication', description: 'Verify logout button terminates session and redirects to login page' },
+  { id: 'TM-AUTH-014', category: 'Authentication', description: 'Verify Forgot Password link navigates to recovery page' },
+  { id: 'TM-AUTH-015', category: 'Authentication', description: 'Verify validation error message when submitting empty email on password recovery' },
+
+  // ── Markets & Watchlist (18 tests) ───────────────────────────────────────
+  { id: 'TM-MKT-001', category: 'Markets', description: 'Verify real-time index cards (NIFTY 50, SENSEX, NIFTY BANK) are loaded on Markets tab' },
+  { id: 'TM-MKT-002', category: 'Markets', description: 'Verify NIFTY IT and NIFTY AUTO index cards are visible with price data' },
+  { id: 'TM-MKT-003', category: 'Markets', description: 'Test IT sector filter pill restricts watchlist to IT stocks only' },
+  { id: 'TM-MKT-004', category: 'Markets', description: 'Test Energy sector filter pill restricts watchlist to Energy stocks only' },
+  { id: 'TM-MKT-005', category: 'Markets', description: 'Test Financial Services sector filter and verify bank stocks appear' },
+  { id: 'TM-MKT-006', category: 'Markets', description: 'Test All filter pill resets watchlist to show all available stocks' },
+  { id: 'TM-MKT-007', category: 'Markets', description: 'Open Stock Details modal for first stock and verify symbol header loads' },
+  { id: 'TM-MKT-008', category: 'Markets', description: 'Verify Chart & MACD sub-tab in Stock Details modal renders price chart' },
+  { id: 'TM-MKT-009', category: 'Markets', description: 'Verify Analysis sub-tab shows Market Cap and Fundamentals data' },
+  { id: 'TM-MKT-010', category: 'Markets', description: 'Verify P&L Statements sub-tab renders Quarterly Audits section' },
+  { id: 'TM-MKT-011', category: 'Markets', description: 'Verify Peers Comparison sub-tab shows Company Symbol column headers' },
+  { id: 'TM-MKT-012', category: 'Markets', description: 'Verify Sentiment sub-tab shows AI Sentiment analysis or loading state' },
+  { id: 'TM-MKT-013', category: 'Markets', description: 'Simulate paper trade BUY 10 shares and verify success toast notification' },
+  { id: 'TM-MKT-014', category: 'Markets', description: 'Verify ORDER TICKET sub-tab shows BUY selected as default trade type' },
+  { id: 'TM-MKT-015', category: 'Markets', description: 'Verify Scanners tab shows gainers and losers toggle buttons' },
+  { id: 'TM-MKT-016', category: 'Markets', description: 'Verify Sectors tab renders Energy Sector constituent breakdown card' },
+  { id: 'TM-MKT-017', category: 'Markets', description: 'Verify volume chart toggles between candle and line representations' },
+  { id: 'TM-MKT-018', category: 'Markets', description: 'Verify peer comparison sector average values match stock list' },
+
+  // ── Portfolio & Holdings (16 tests) ──────────────────────────────────────
+  { id: 'TM-PORT-001', category: 'Portfolio', description: 'Navigate to Portfolio page via bottom navigation tab' },
+  { id: 'TM-PORT-002', category: 'Portfolio', description: 'Verify Total Invested and Total Current Value summary cards are displayed' },
+  { id: 'TM-PORT-003', category: 'Portfolio', description: 'Verify Open Positions table shows holdings from executed BUY trade' },
+  { id: 'TM-PORT-004', category: 'Portfolio', description: 'Verify stock symbol in holdings table matches the previously purchased stock' },
+  { id: 'TM-PORT-005', category: 'Portfolio', description: 'Verify holdings table shows positive quantity value greater than zero' },
+  { id: 'TM-PORT-006', category: 'Portfolio', description: 'Verify unrealized P&L column displays profit or loss value' },
+  { id: 'TM-PORT-007', category: 'Portfolio', description: 'Simulate SELL 5 shares from holdings via order ticket and verify execution' },
+  { id: 'TM-PORT-008', category: 'Portfolio', description: 'Verify SELL success toast notification confirms trade execution' },
+  { id: 'TM-PORT-009', category: 'Portfolio', description: 'Verify Wallet Manager sub-tab loads Deposit Simulated Capital form' },
+  { id: 'TM-PORT-010', category: 'Portfolio', description: 'Perform UPI Deposit of Rs. 15,000 and verify success confirmation toast' },
+  { id: 'TM-PORT-011', category: 'Portfolio', description: 'Perform Bank Withdrawal of Rs. 5,000 and verify debit confirmation toast' },
+  { id: 'TM-PORT-012', category: 'Portfolio', description: 'Verify wallet balance reflects net change of Rs. 10,000 after deposit/withdrawal' },
+  { id: 'TM-PORT-013', category: 'Portfolio', description: 'Navigate to Capital Gains Tax sub-tab and verify breakdown header displays' },
+  { id: 'TM-PORT-014', category: 'Portfolio', description: 'Verify realized P&L total is shown in Capital Gains Tax summary card' },
+  { id: 'TM-PORT-015', category: 'Portfolio', description: 'Verify Transaction Fees breakdown tooltip is displayed on paper trade execute' },
+  { id: 'TM-PORT-016', category: 'Portfolio', description: 'Verify Export to PDF/Excel button triggers file download for portfolio summary' },
+
+  // ── Alerts & Rule Engine (15 tests) ──────────────────────────────────────
+  { id: 'TM-ALRT-001', category: 'Alerts', description: 'Navigate to My Rules page via navigation tab' },
+  { id: 'TM-ALRT-002', category: 'Alerts', description: 'Verify Deploy Alert Rule form is visible with Pick Equity dropdown' },
+  { id: 'TM-ALRT-003', category: 'Alerts', description: 'Select first stock from Pick Equity dropdown successfully' },
+  { id: 'TM-ALRT-004', category: 'Alerts', description: 'Select GREATER_THAN conditional criteria from criteria dropdown' },
+  { id: 'TM-ALRT-005', category: 'Alerts', description: 'Configure LESS_THAN alert trigger with Rs. 1250 price threshold' },
+  { id: 'TM-ALRT-006', category: 'Alerts', description: 'Deploy alert rule and verify success toast notification appears' },
+  { id: 'TM-ALRT-007', category: 'Alerts', description: 'Verify newly deployed rule appears in Active Rules tab listing' },
+  { id: 'TM-ALRT-008', category: 'Alerts', description: 'Verify alert rule card shows correct stock symbol and criteria' },
+  { id: 'TM-ALRT-009', category: 'Alerts', description: 'Deploy a second alert rule for a different stock symbol successfully' },
+  { id: 'TM-ALRT-010', category: 'Alerts', description: 'Verify both alert rules are visible in Active Rules listing' },
+  { id: 'TM-ALRT-011', category: 'Alerts', description: 'Delete first active alert rule and verify deletion toast notification' },
+  { id: 'TM-ALRT-012', category: 'Alerts', description: 'Verify deleted alert rule is no longer shown in Active Rules list' },
+  { id: 'TM-ALRT-013', category: 'Alerts', description: 'Verify SMS notification checkbox persists preferences on save' },
+  { id: 'TM-ALRT-014', category: 'Alerts', description: 'Verify error message when deploying alert rule with negative price threshold' },
+  { id: 'TM-ALRT-015', category: 'Alerts', description: 'Verify history log registers triggered alerts with date/time stamps' },
+
+  // ── AI Advisor & Chatbot (16 tests) ──────────────────────────────────────
+  { id: 'TM-ADVI-001', category: 'AI Advisor', description: 'Navigate to AI Advisor tab via navigation menu' },
+  { id: 'TM-ADVI-002', category: 'AI Advisor', description: 'Verify AI Advisor header shows TradeMentor AI Advisor title' },
+  { id: 'TM-ADVI-003', category: 'AI Advisor', description: 'Verify current risk profile badge is displayed in header area' },
+  { id: 'TM-ADVI-004', category: 'AI Advisor', description: 'Set risk profile to HIGH and verify toast confirmation message' },
+  { id: 'TM-ADVI-005', category: 'AI Advisor', description: 'Set risk profile to LOW and verify toast confirmation message' },
+  { id: 'TM-ADVI-006', category: 'AI Advisor', description: 'Send "what is RSI indicator?" to AI chatbot and verify response loads' },
+  { id: 'TM-ADVI-007', category: 'AI Advisor', description: 'Send "what is PE Ratio?" to AI chatbot and verify response generation' },
+  { id: 'TM-ADVI-008', category: 'AI Advisor', description: 'Verify AI response bubble is not empty and contains text content' },
+  { id: 'TM-ADVI-009', category: 'AI Advisor', description: 'Click Run Market Scanner preset and verify new chatbot response appears' },
+  { id: 'TM-ADVI-010', category: 'AI Advisor', description: 'Click Retake AI Risk Quiz button to open quiz modal dialog' },
+  { id: 'TM-ADVI-011', category: 'AI Advisor', description: 'Verify AI Risk Profile Quiz modal dialog loads with questions' },
+  { id: 'TM-ADVI-012', category: 'AI Advisor', description: 'Select Balanced Growth option in risk quiz and verify modal closes' },
+  { id: 'TM-ADVI-013', category: 'AI Advisor', description: 'Verify risk profile is updated to MODERATE after quiz retake' },
+  { id: 'TM-ADVI-014', category: 'AI Advisor', description: 'Verify chat history persists after switching tabs and returning' },
+  { id: 'TM-ADVI-015', category: 'AI Advisor', description: 'Verify like/dislike feedback icons generate confirmation message on click' },
+  { id: 'TM-ADVI-016', category: 'AI Advisor', description: 'Verify Clear Chat History modal warning and successful chat purge' },
+
+  // ── Ledger & Trade History (15 tests) ────────────────────────────────────
+  { id: 'TM-HIST-001', category: 'Ledger', description: 'Navigate to Ledger history page via navigation tab' },
+  { id: 'TM-HIST-002', category: 'Ledger', description: 'Verify Trade Ledger records header is visible on the page' },
+  { id: 'TM-HIST-003', category: 'Ledger', description: 'Verify ledger table has at least one row from executed BUY transaction' },
+  { id: 'TM-HIST-004', category: 'Ledger', description: 'Verify transaction type column shows BUY or SELL label correctly' },
+  { id: 'TM-HIST-005', category: 'Ledger', description: 'Verify stock symbol column in ledger matches traded stock symbol' },
+  { id: 'TM-HIST-006', category: 'Ledger', description: 'Verify trade price column shows numeric price value' },
+  { id: 'TM-HIST-007', category: 'Ledger', description: 'Verify quantity column shows positive integer share count' },
+  { id: 'TM-HIST-008', category: 'Ledger', description: 'Verify total value column shows calculated trade amount in rupees' },
+  { id: 'TM-HIST-009', category: 'Ledger', description: 'Click ledger refresh button and verify table remains populated after reload' },
+  { id: 'TM-HIST-010', category: 'Ledger', description: 'Verify SELL trade entry appears in ledger after portfolio sell execution' },
+  { id: 'TM-HIST-011', category: 'Ledger', description: 'Filter ledger list by Transaction Type (BUY only) and verify records' },
+  { id: 'TM-HIST-012', category: 'Ledger', description: 'Filter ledger list by Transaction Type (SELL only) and verify records' },
+  { id: 'TM-HIST-013', category: 'Ledger', description: 'Verify download ledger history CSV triggers file generation' },
+  { id: 'TM-HIST-014', category: 'Ledger', description: 'Search transaction ledger by stock symbol name and verify matches' },
+  { id: 'TM-HIST-015', category: 'Ledger', description: 'Paginate ledger list and verify page size changes list rows' },
+
+  // ── Academy & Financial Education (15 tests) ─────────────────────────────
+  { id: 'TM-ACAD-001', category: 'Academy', description: 'Navigate to Academy page via navigation menu tab' },
+  { id: 'TM-ACAD-002', category: 'Academy', description: 'Verify Trading Academy Modules sub-tab is visible and selected by default' },
+  { id: 'TM-ACAD-003', category: 'Academy', description: 'Verify Level 1: Market Basics module card is displayed' },
+  { id: 'TM-ACAD-004', category: 'Academy', description: 'Verify Level 2: Technical Analysis module card is displayed' },
+  { id: 'TM-ACAD-005', category: 'Academy', description: 'Verify Level 3: Advanced Strategies module card is displayed' },
+  { id: 'TM-ACAD-006', category: 'Academy', description: 'Click Start Learning on Level 1 module and verify loading toast appears' },
+  { id: 'TM-ACAD-007', category: 'Academy', description: 'Navigate to Financial Dictionary sub-tab successfully' },
+  { id: 'TM-ACAD-008', category: 'Academy', description: 'Verify P/E Ratio glossary term card is visible in dictionary list' },
+  { id: 'TM-ACAD-009', category: 'Academy', description: 'Verify Stop Loss glossary term card definition is displayed' },
+  { id: 'TM-ACAD-010', category: 'Academy', description: 'Verify RSI glossary term card is visible in dictionary' },
+  { id: 'TM-ACAD-011', category: 'Academy', description: 'Verify MACD glossary term card definition is displayed' },
+  { id: 'TM-ACAD-012', category: 'Academy', description: 'Verify Market Cap glossary term card is visible in the dictionary list' },
+  { id: 'TM-ACAD-013', category: 'Academy', description: 'Bookmark module L1 Market Basics and verify it displays under Bookmarks tab' },
+  { id: 'TM-ACAD-014', category: 'Academy', description: 'Verify Search glossary dictionary filters items dynamically' },
+  { id: 'TM-ACAD-015', category: 'Academy', description: 'Verify user overall academy progress percentage bar increases after completing module' }
 ];
 
 const reporter = {
@@ -86,13 +171,13 @@ const reporter = {
           const screenshotPath = path.join(screenshotsDir, screenshotFilename);
           fs.writeFileSync(screenshotPath, screenshotData, 'base64');
           console.log(`  [SCREENSHOT] Saved to ${screenshotPath}\n`);
-        } catch (screenshotErr) {}
+        } catch (screenshotErr) { }
         try {
           const logs = await global.driver.manage().logs().get('browser');
           if (logs && logs.length > 0) {
             logs.forEach(log => console.log(`    [${log.level.name}] ${log.message}`));
           }
-        } catch (logErr) {}
+        } catch (logErr) { }
       }
       results.push({ id, category, description, status: 'FAIL', duration, error: err.message, screenshot: screenshotFilename });
     }
