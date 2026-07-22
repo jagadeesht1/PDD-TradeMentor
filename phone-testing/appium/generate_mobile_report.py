@@ -2,16 +2,17 @@ import os
 import pandas as pd
 import xlsxwriter
 
-def generate_report():
-    # Detect Desktop path dynamically, fallback to current directory on Linux/CI
-    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-    if not os.path.exists(desktop_path):
-        onedrive_desktop = os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop")
-        if os.path.exists(onedrive_desktop):
-            desktop_path = onedrive_desktop
-        else:
-            desktop_path = "."
-    output_file = os.path.normpath(os.path.join(desktop_path, "TradeMentor_Mobile_E2E_Test_Report.xlsx"))
+def generate_report(results_json_path=None, output_file=None):
+    if output_file is None:
+        # Detect Desktop path dynamically, fallback to current directory on Linux/CI
+        desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+        if not os.path.exists(desktop_path):
+            onedrive_desktop = os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop")
+            if os.path.exists(onedrive_desktop):
+                desktop_path = onedrive_desktop
+            else:
+                desktop_path = "."
+        output_file = os.path.normpath(os.path.join(desktop_path, "TradeMentor_Mobile_E2E_Test_Report.xlsx"))
     
     print(f"Generating Mobile E2E Test Report at: {output_file}")
     
