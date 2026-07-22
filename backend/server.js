@@ -115,34 +115,208 @@ const initialIndices = [
 ];
 
 
+// ─── Hybrid Data Access Layer (Mongoose + In-Memory Fallback) ───────────────
+const memoryStore = {
+  stocks: [],
+  users: [],
+  portfolios: [],
+  alerts: [],
+  trades: []
+};
+
+// Generate MongoDB-like 24-char ObjectId
+function generateObjectId() {
+  return Math.floor(Date.now() / 1000).toString(16).padStart(8, '0') + 'xxxxxxxxxxxxxxxx'.replace(/[x]/g, () => (Math.random() * 16 | 0).toString(16));
+}
+
+const DB = {
+  isMongo() { return mongoose.connection.readyState === 1; },
+
+  async countStocks() {
+    return this.isMongo() ? await Stock.countDocuments() : memoryStore.stocks.length;
+  },
+
+  async insertStocks(items) {
+    if (this.isMongo()) {
+      await Stock.insertMany(items);
+    } else {
+      items.forEach(i => {
+        memoryStore.stocks.push({
+          _id: generateObjectId(),
+          ...i,
+          pChange: 0,
+          isGainer: false,
+          lastUpdated: new Date(),
+          async save() { return this; }
+        });
+      });
+    }
+  },
+
+  async getStocks(filter = {}) {
+    if (this.isMongo()) return await Stock.find(filter).sort({ symbol: 1 });
+    let res = memoryStore.stocks;
+    if (filter.sector && filter.sector.$ne) res = res.filter(s => s.sector !== filter.sector.$ne);
+    if (filter.sector && typeof filter.sector === 'string') res = res.filter(s => s.sector === filter.sector);
+    return res;
+  },
+
+  async getStock(filter) {
+    if (this.isMongo()) return await Stock.findOne(filter);
+    if (filter.symbol) return memoryStore.stocks.find(s => s.symbol === filter.symbol.toUpperCase());
+    return null;
+  },
+
+  async countUsers() {
+    return this.isMongo() ? await User.countDocuments() : memoryStore.users.length;
+  },
+
+  async createUser(userData) {
+    if (this.isMongo()) {
+      const u = new User(userData);
+      await u.save();
+      return u;
+    } else {
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(userData.password, salt);
+      const userObj = {
+        _id: generateObjectId(),
+        name: userData.name,
+        email: userData.email.toLowerCase(),
+        password: hashedPassword,
+        walletBalance: userData.walletBalance || 100000.00,
+        async comparePassword(candidate) {
+          return bcrypt.compare(candidate, this.password);
+        },
+        async save() { return this; }
+      };
+      memoryStore.users.push(userObj);
+      return userObj;
+    }
+  },
+
+  async getUser(filter) {
+    if (this.isMongo()) return await User.findOne(filter);
+    if (filter.email) return memoryStore.users.find(u => u.email === filter.email.toLowerCase());
+    if (filter._id) return memoryStore.users.find(u => String(u._id) === String(filter._id));
+    return null;
+  },
+
+  async createPortfolio(pData) {
+    if (this.isMongo()) return await Portfolio.create(pData);
+    const pObj = {
+      _id: generateObjectId(),
+      userId: pData.userId,
+      holdings: pData.holdings || [],
+      totalRealizedPnL: 0,
+      findHolding(symbol) {
+        return this.holdings.findIndex(h => h.symbol === symbol.toUpperCase());
+      },
+      markModified() {},
+      async save() { return this; }
+    };
+    memoryStore.portfolios.push(pObj);
+    return pObj;
+  },
+
+  async getPortfolio(userId) {
+    if (this.isMongo()) return await Portfolio.findOne({ userId });
+    let p = memoryStore.portfolios.find(pt => String(pt.userId) === String(userId));
+    if (!p) p = await this.createPortfolio({ userId, holdings: [] });
+    return p;
+  },
+
+  async createAlert(aData) {
+    if (this.isMongo()) return await Alert.create(aData);
+    const alertObj = {
+      _id: generateObjectId(),
+      userId: aData.userId,
+      symbol: aData.symbol.toUpperCase(),
+      targetPrice: Number(aData.targetPrice),
+      criteria: aData.criteria,
+      isTriggered: aData.isTriggered || false,
+      createdAt: new Date(),
+      async save() { return this; }
+    };
+    memoryStore.alerts.push(alertObj);
+    return alertObj;
+  },
+
+  async getAlerts(filter) {
+    if (this.isMongo()) return await Alert.find(filter).sort({ createdAt: -1 });
+    let res = memoryStore.alerts;
+    if (filter.userId) res = res.filter(a => String(a.userId) === String(filter.userId));
+    if (filter.isTriggered !== undefined) res = res.filter(a => a.isTriggered === filter.isTriggered);
+    return res;
+  },
+
+  async deleteAlert(alertId) {
+    if (this.isMongo()) return await Alert.findByIdAndDelete(alertId);
+    const idx = memoryStore.alerts.findIndex(a => String(a._id) === String(alertId));
+    if (idx >= 0) return memoryStore.alerts.splice(idx, 1)[0];
+    return null;
+  },
+
+  async createTrade(tData) {
+    if (this.isMongo()) {
+      const t = new Trade(tData);
+      await t.save();
+      return t;
+    } else {
+      const tradeObj = {
+        _id: generateObjectId(),
+        ...tData,
+        createdAt: new Date(),
+        async save() { return this; }
+      };
+      memoryStore.trades.push(tradeObj);
+      return tradeObj;
+    }
+  },
+
+  async getTrades(userId, skip = 0, limit = 50) {
+    if (this.isMongo()) {
+      const [trades, total] = await Promise.all([
+        Trade.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
+        Trade.countDocuments({ userId })
+      ]);
+      return { trades, total };
+    } else {
+      const userTrades = memoryStore.trades.filter(t => String(t.userId) === String(userId));
+      const trades = userTrades.slice().reverse().slice(skip, skip + limit);
+      return { trades, total: userTrades.length };
+    }
+  }
+};
+
 // ─── Database Seeder ──────────────────────────────────────────────────────────
 async function seedDatabase() {
   try {
-    const stockCount = await Stock.countDocuments();
+    const stockCount = await DB.countStocks();
     if (stockCount === 0) {
       console.log('Seeding initial stock list and index tickers...');
-      await Stock.insertMany([...initialStocks, ...initialIndices]);
+      await DB.insertStocks([...initialStocks, ...initialIndices]);
       console.log('Stock and Index records successfully seeded!');
     }
 
-    const userCount = await User.countDocuments();
+    const userCount = await DB.countUsers();
     if (userCount === 0) {
       console.log('Seeding default mock user for virtual trading...');
-      const defaultUser = new User({
+      const defaultUser = await DB.createUser({
         name: 'Demo Investor',
         email: 'demo@tradementor.com',
         password: 'password123',
         walletBalance: 100000.00
       });
-      await defaultUser.save();
       console.log(`Default user created: ${defaultUser.email} | ID: ${defaultUser._id}`);
 
       // Seed initial empty portfolio
-      await Portfolio.create({ userId: defaultUser._id, holdings: [] });
+      await DB.createPortfolio({ userId: defaultUser._id, holdings: [] });
       console.log('Empty portfolio initialized for default user');
 
       // Seed a sample alert
-      await Alert.create({
+      await DB.createAlert({
         userId: defaultUser._id,
         symbol: 'RELIANCE',
         targetPrice: 2470.00,
@@ -160,7 +334,7 @@ async function seedDatabase() {
 // Runs every 5 seconds, fluctuates prices randomly between -1.5% and +1.5%
 async function runMarketEngine() {
   try {
-    const stocks = await Stock.find();
+    const stocks = await DB.getStocks();
     if (stocks.length === 0) return;
 
     for (const stock of stocks) {
@@ -177,9 +351,9 @@ async function runMarketEngine() {
     }
 
     // Evaluate pending alert rules
-    const pendingAlerts = await Alert.find({ isTriggered: false });
+    const pendingAlerts = await DB.getAlerts({ isTriggered: false });
     for (const alert of pendingAlerts) {
-      const stock = await Stock.findOne({ symbol: alert.symbol });
+      const stock = await DB.getStock({ symbol: alert.symbol });
       if (!stock) continue;
 
       let trigger = false;
@@ -214,13 +388,12 @@ app.post('/api/auth/register', async (req, res) => {
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await DB.getUser({ email: email.toLowerCase() });
     if (existing) {
       return res.status(409).json({ error: 'An account with this email already exists' });
     }
-    const user = new User({ name, email, password, walletBalance: 100000.00 });
-    await user.save();
-    await Portfolio.create({ userId: user._id, holdings: [] });
+    const user = await DB.createUser({ name, email, password, walletBalance: 100000.00 });
+    await DB.createPortfolio({ userId: user._id, holdings: [] });
     const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     console.log(`[AUTH] New user registered: ${user.email} | ID: ${user._id}`);
     res.status(201).json({
@@ -243,7 +416,7 @@ app.post('/api/auth/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await DB.getUser({ email: email.toLowerCase() });
     if (!user) {
       return res.status(401).json({ error: 'No account found with this email address' });
     }
@@ -274,14 +447,12 @@ app.post('/api/auth/google', async (req, res) => {
       return res.status(400).json({ error: 'Email and name are required for Google Auth' });
     }
     
-    let user = await User.findOne({ email: email.toLowerCase() });
+    let user = await DB.getUser({ email: email.toLowerCase() });
     
     if (!user) {
-      // Create new user with random placeholder password (since they login via google)
       const randomPassword = Math.random().toString(36).slice(-10) + 'A1!';
-      user = new User({ name, email: email.toLowerCase(), password: randomPassword, walletBalance: 100000.00 });
-      await user.save();
-      await Portfolio.create({ userId: user._id, holdings: [] });
+      user = await DB.createUser({ name, email: email.toLowerCase(), password: randomPassword, walletBalance: 100000.00 });
+      await DB.createPortfolio({ userId: user._id, holdings: [] });
       console.log(`[AUTH] New user registered via Google: ${user.email} | ID: ${user._id}`);
     } else {
       console.log(`[AUTH] Login via Google: ${user.email}`);
@@ -305,7 +476,7 @@ app.post('/api/auth/google', async (req, res) => {
 // GET /api/stocks — All equities (no indices)
 app.get('/api/stocks', async (req, res) => {
   try {
-    const stocks = await Stock.find({ sector: { $ne: 'Index' } }).sort({ symbol: 1 });
+    const stocks = await DB.getStocks({ sector: { $ne: 'Index' } });
     res.json(stocks);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -315,7 +486,7 @@ app.get('/api/stocks', async (req, res) => {
 // GET /api/stocks/:symbol — Single stock detail
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
-    const stock = await Stock.findOne({ symbol: req.params.symbol.toUpperCase() });
+    const stock = await DB.getStock({ symbol: req.params.symbol.toUpperCase() });
     if (!stock) return res.status(404).json({ error: 'Stock not found' });
     res.json(stock);
   } catch (err) {
@@ -326,7 +497,7 @@ app.get('/api/stocks/:symbol', async (req, res) => {
 // GET /api/indices — Market indices only
 app.get('/api/indices', async (req, res) => {
   try {
-    const indices = await Stock.find({ sector: 'Index' });
+    const indices = await DB.getStocks({ sector: 'Index' });
     res.json(indices);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -337,7 +508,7 @@ app.get('/api/indices', async (req, res) => {
 // GET /api/users/default — Fetch default mock user
 app.get('/api/users/default', async (req, res) => {
   try {
-    const user = await User.findOne({ email: 'demo@tradementor.com' });
+    const user = await DB.getUser({ email: 'demo@tradementor.com' });
     if (!user) return res.status(404).json({ error: 'Default user not seeded yet' });
     res.json(user);
   } catch (err) {
@@ -353,14 +524,13 @@ app.post('/api/alerts', async (req, res) => {
     if (!userId || !symbol || !targetPrice || !criteria) {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
-    const newAlert = new Alert({
+    const newAlert = await DB.createAlert({
       userId,
       symbol: symbol.toUpperCase(),
       targetPrice: Number(targetPrice),
       criteria,
       isTriggered: false
     });
-    await newAlert.save();
     res.status(201).json(newAlert);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -370,7 +540,7 @@ app.post('/api/alerts', async (req, res) => {
 // GET /api/alerts/:userId — Fetch user alerts
 app.get('/api/alerts/:userId', async (req, res) => {
   try {
-    const alerts = await Alert.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    const alerts = await DB.getAlerts({ userId: req.params.userId });
     res.json(alerts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -380,7 +550,7 @@ app.get('/api/alerts/:userId', async (req, res) => {
 // DELETE /api/alerts/:alertId — Delete an alert rule
 app.delete('/api/alerts/:alertId', async (req, res) => {
   try {
-    const deleted = await Alert.findByIdAndDelete(req.params.alertId);
+    const deleted = await DB.deleteAlert(req.params.alertId);
     if (!deleted) return res.status(404).json({ error: 'Alert not found' });
     res.json({ message: 'Alert deleted successfully' });
   } catch (err) {
@@ -406,33 +576,24 @@ app.post('/api/trade', async (req, res) => {
     return res.status(400).json({ error: 'Type must be BUY or SELL' });
   }
 
-  // Inner function to execute the actual database updates
-  const executeUpdates = async (session) => {
-    const stock = await Stock.findOne({ symbol: symbol.toUpperCase() }).session(session);
-    if (!stock) {
-      throw new Error(`Stock ${symbol} not found`);
-    }
+  try {
+    const stock = await DB.getStock({ symbol: symbol.toUpperCase() });
+    if (!stock) return res.status(404).json({ error: `Stock ${symbol} not found` });
 
-    const user = await User.findById(userId).session(session);
-    if (!user) {
-      throw new Error('User not found');
-    }
+    const user = await DB.getUser({ _id: userId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    let portfolio = await Portfolio.findOne({ userId }).session(session);
-    if (!portfolio) {
-      portfolio = new Portfolio({ userId, holdings: [] });
-    }
+    let portfolio = await DB.getPortfolio(userId);
+    if (!portfolio) portfolio = await DB.createPortfolio({ userId, holdings: [] });
 
     const tradeValue = Number((qty * stock.currentPrice).toFixed(2));
     const holdingIdx = portfolio.findHolding(stock.symbol);
     let realizedPnL = null;
 
-    // ── BUY logic ──
     if (tradeType === 'BUY') {
       if (user.walletBalance < tradeValue) {
-        throw new Error(`Insufficient wallet balance. Need ₹${tradeValue.toFixed(2)}, have ₹${user.walletBalance.toFixed(2)}`);
+        return res.status(400).json({ error: `Insufficient wallet balance. Need ₹${tradeValue.toFixed(2)}, have ₹${user.walletBalance.toFixed(2)}` });
       }
-
       user.walletBalance = Number((user.walletBalance - tradeValue).toFixed(2));
 
       if (holdingIdx >= 0) {
@@ -454,11 +615,10 @@ app.post('/api/trade', async (req, res) => {
       }
     }
 
-    // ── SELL logic ──
     if (tradeType === 'SELL') {
       if (holdingIdx < 0 || portfolio.holdings[holdingIdx].quantity < qty) {
         const heldQty = holdingIdx >= 0 ? portfolio.holdings[holdingIdx].quantity : 0;
-        throw new Error(`Cannot sell ${qty} shares. You only hold ${heldQty} of ${stock.symbol}`);
+        return res.status(400).json({ error: `Cannot sell ${qty} shares. You only hold ${heldQty} of ${stock.symbol}` });
       }
 
       const h          = portfolio.holdings[holdingIdx];
@@ -477,13 +637,11 @@ app.post('/api/trade', async (req, res) => {
       }
     }
 
-    // Persist all changes
-    portfolio.markModified('holdings');
-    await portfolio.save({ session });
-    await user.save({ session });
+    if (typeof portfolio.markModified === 'function') portfolio.markModified('holdings');
+    await portfolio.save();
+    await user.save();
 
-    // Record trade in ledger
-    const trade = new Trade({
+    const trade = await DB.createTrade({
       userId,
       symbol:      stock.symbol,
       stockName:   stock.name,
@@ -494,63 +652,17 @@ app.post('/api/trade', async (req, res) => {
       totalValue:  tradeValue,
       realizedPnL
     });
-    await trade.save({ session });
 
-    return { trade, newBalance: user.walletBalance, realizedPnL };
-  };
-
-  // Try executing with a session transaction first
-  let session = null;
-  try {
-    session = await mongoose.startSession();
-    session.startTransaction();
-    const result = await executeUpdates(session);
-    await session.commitTransaction();
-    session.endSession();
-    console.log(`[TRADE-TX] ${tradeType} | ${qty}x ${symbol} @ ₹${result.trade.price} | User balance: ₹${result.newBalance}`);
+    console.log(`[TRADE] ${tradeType} | ${qty}x ${symbol} @ ₹${trade.price} | User balance: ₹${user.walletBalance}`);
     return res.status(201).json({
       message: `${tradeType} order executed successfully`,
-      trade: result.trade,
-      newBalance: result.newBalance,
-      realizedPnL: result.realizedPnL
+      trade,
+      newBalance: user.walletBalance,
+      realizedPnL
     });
   } catch (err) {
-    if (session) {
-      try {
-        await session.abortTransaction();
-      } catch (abortErr) {
-        // silent abort error
-      }
-      session.endSession();
-    }
-
-    // Check if error is due to transaction capability constraints (e.g. standalone MongoDB)
-    const isTxUnsupported = 
-      err.message.includes('transaction') || 
-      err.message.includes('replica set') || 
-      err.code === 20 || 
-      err.codeName === 'IllegalOperation' ||
-      err.message.includes('sessions are not supported');
-
-    if (isTxUnsupported) {
-      console.warn('[MONGO] Transactions not supported by deployment. Falling back to non-transactional updates...');
-      try {
-        const result = await executeUpdates(null);
-        console.log(`[TRADE-FALLBACK] ${tradeType} | ${qty}x ${symbol} @ ₹${result.trade.price} | User balance: ₹${result.newBalance}`);
-        return res.status(201).json({
-          message: `${tradeType} order executed successfully (Fallback Mode)`,
-          trade: result.trade,
-          newBalance: result.newBalance,
-          realizedPnL: result.realizedPnL
-        });
-      } catch (fallbackErr) {
-        console.error('Fallback trade execution error:', fallbackErr);
-        return res.status(400).json({ error: fallbackErr.message });
-      }
-    } else {
-      console.error('Trade execution error (Aborted):', err);
-      return res.status(400).json({ error: err.message });
-    }
+    console.error('Trade execution error:', err);
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -558,13 +670,12 @@ app.post('/api/trade', async (req, res) => {
 // GET /api/portfolio/:userId — Holdings with live P&L
 app.get('/api/portfolio/:userId', async (req, res) => {
   try {
-    const portfolio = await Portfolio.findOne({ userId: req.params.userId });
+    const portfolio = await DB.getPortfolio(req.params.userId);
     if (!portfolio) return res.status(404).json({ error: 'Portfolio not found for this user' });
 
-    // Enrich holdings with live market price
     const enrichedHoldings = await Promise.all(
       portfolio.holdings.map(async (h) => {
-        const stock = await Stock.findOne({ symbol: h.symbol });
+        const stock = await DB.getStock({ symbol: h.symbol });
         const currentPrice   = stock ? stock.currentPrice : h.averageBuyPrice;
         const currentValue   = Number((currentPrice * h.quantity).toFixed(2));
         const unrealizedPnL  = Number((currentValue - h.totalInvested).toFixed(2));
@@ -609,12 +720,8 @@ app.get('/api/trades/:userId', async (req, res) => {
     const limit = parseInt(req.query.limit || '20', 10);
     const skip  = (page - 1) * limit;
 
-    const [trades, total] = await Promise.all([
-      Trade.find({ userId: req.params.userId }).sort({ createdAt: -1 }).skip(skip).limit(limit),
-      Trade.countDocuments({ userId: req.params.userId })
-    ]);
-
-    res.json({ trades, total, page, totalPages: Math.ceil(total / limit) });
+    const { trades, total } = await DB.getTrades(req.params.userId, skip, limit);
+    res.json({ trades, total, page, totalPages: Math.ceil(total / limit) || 1 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -666,20 +773,52 @@ app.get('/api/health', (_, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BOOT
+// BOOT & DATABASE CONNECTION WITH IN-MEMORY FALLBACK
 // ═══════════════════════════════════════════════════════════════════════════════
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('Successfully connected to MongoDB database');
-    seedDatabase().then(() => {
-      setInterval(runMarketEngine, 5000);
-      console.log('Background Mock Market Engine initialized (5s refresh rate)');
-      app.listen(PORT, () => {
-        console.log(`TradeMentor API server running on http://localhost:${PORT}`);
-      });
-    });
-  })
-  .catch((err) => {
-    console.error('Failed to establish database connection:', err);
-    process.exit(1);
+mongoose.connection.on('connected', () => {
+  console.log('MongoDB connection established successfully.');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err.message);
+});
+
+async function connectDBWithRetry() {
+  // Try external / local MongoDB instance
+  try {
+    console.log(`Connecting to local MongoDB at ${MONGO_URI}...`);
+    await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 2000 });
+    console.log('Successfully connected to local MongoDB database!');
+    return true;
+  } catch (err) {
+    console.warn(`Local MongoDB not running on ${MONGO_URI}: ${err.message}`);
+    console.log('⚡ Initialized In-Memory Database Mode for fast, zero-dependency execution.');
+    return false;
+  }
+}
+
+async function startServer() {
+  const dbConnected = await connectDBWithRetry();
+  
+  try {
+    await seedDatabase();
+  } catch (seedErr) {
+    console.warn('Seeding notice:', seedErr.message);
+  }
+
+  setInterval(runMarketEngine, 5000);
+  console.log('Background Mock Market Engine initialized (5s refresh rate)');
+
+  app.listen(PORT, () => {
+    console.log(`===============================================`);
+    console.log(` TradeMentor API server running on http://localhost:${PORT}`);
+    console.log(` Health check endpoint: http://localhost:${PORT}/api/health`);
+    console.log(` DB Status: ${mongoose.connection.readyState === 1 ? 'CONNECTED' : 'IN-MEMORY MODE'}`);
+    console.log(`===============================================`);
   });
+}
+
+startServer();
+
+
+

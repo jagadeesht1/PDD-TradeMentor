@@ -4,7 +4,7 @@ module.exports = {
   headless: true, // Run headless by default for clean CLI output, change to false to view browser execution
   timeout: 15000, // Explicit wait timeout in milliseconds
   credentials: {
-    email: 'demo@tradementor.com',
-    password: 'password123'
+    email: 'jagadeeshwarreddy089@gmail.com',
+    password: 'Jagadeesh'
   }
 };

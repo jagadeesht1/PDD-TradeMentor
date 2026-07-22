@@ -5,7 +5,11 @@
     "backend"
   ],
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "exceljs": "^4.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb-memory-server": "^9.1.6",
+    "mongoose": "^8.2.0",
     "selenium-webdriver": "^4.45.0"
   }
 }
